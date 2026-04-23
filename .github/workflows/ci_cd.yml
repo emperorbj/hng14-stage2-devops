@@ -76,6 +76,8 @@ jobs:
 
       - name: Run tests
         working-directory: api
+        env:
+          PYTHONPATH: .
         run: pytest --cov=main --cov-report=xml --cov-report=html
 
       - name: Upload coverage report
