@@ -1,25 +1,23 @@
-FROM node:18-alpine AS builder
+FROM node:18-alpine AS deps
 
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
-COPY . .
-RUN npm run build
 
+FROM node:18-alpine AS production
 
-FROM node:18-alpine
+RUN apk add --no-cache curl
 
-RUN apk add --no-cache curl \
-    && adduser -D appuser
+RUN adduser -D appuser
 
 WORKDIR /app
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/package*.json ./
-RUN npm install --omit=dev
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
 USER appuser
 
 EXPOSE 3000
 
-HEALTHCHECK CMD curl --fail http://localhost:3000 || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:3000/health || exit 1
 
 CMD ["node", "app.js"]

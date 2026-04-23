@@ -36,6 +36,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
     deploy:
       resources:
         limits:
@@ -66,11 +67,19 @@ services:
     ports:
       - "3000:3000"
     depends_on:
+      redis:
+        condition: service_healthy
       api:
         condition: service_healthy
     networks:
       - app-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -84,4 +93,17 @@ services:
       PYTHONPATH: /app
     command: pytest --cov=main --cov-report=xml --cov-report=html
     volumes:
-    - ./api:/app
+      - ./api:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
