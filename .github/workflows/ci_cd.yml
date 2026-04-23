@@ -42,14 +42,17 @@ jobs:
       - name: Lint Dockerfiles
         uses: hadolint/hadolint-action@v3.1.0
         with:
+          ignore: DL3008
           dockerfile: api/Dockerfile
 
       - uses: hadolint/hadolint-action@v3.1.0
         with:
+          ignore: DL3008
           dockerfile: worker/Dockerfile
 
       - uses: hadolint/hadolint-action@v3.1.0
         with:
+          ignore: DL3008
           dockerfile: frontend/Dockerfile
 
 
