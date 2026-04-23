@@ -1,4 +1,6 @@
 .env
+**/.env
 node_modules/
 __pycache__/
+.coverage
 venv/

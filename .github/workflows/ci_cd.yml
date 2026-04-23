@@ -1,5 +1,9 @@
 name: CI/CD Pipeline
 
+permissions:
+  contents: read
+  actions: write
+
 on:
   push:
     branches:
@@ -10,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -39,18 +44,20 @@ jobs:
           npm install
           npx eslint app.js
 
-      - name: Lint Dockerfiles
+      - name: Lint Dockerfile (API)
         uses: hadolint/hadolint-action@v3.1.0
         with:
           ignore: DL3008
           dockerfile: api/Dockerfile
 
-      - uses: hadolint/hadolint-action@v3.1.0
+      - name: Lint Dockerfile (Worker)
+        uses: hadolint/hadolint-action@v3.1.0
         with:
           ignore: DL3008
           dockerfile: worker/Dockerfile
 
-      - uses: hadolint/hadolint-action@v3.1.0
+      - name: Lint Dockerfile (Frontend)
+        uses: hadolint/hadolint-action@v3.1.0
         with:
           ignore: DL3008,DL3018
           dockerfile: frontend/Dockerfile
@@ -61,7 +68,8 @@ jobs:
     needs: lint
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -69,22 +77,16 @@ jobs:
           python-version: "3.11"
 
       - name: Install test dependencies
-        run: |
-          cd api
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
+        run: pip install -r api/requirements.txt
 
       - name: Run tests
-        working-directory: api
-        env:
-          PYTHONPATH: .
         run: pytest --cov=main --cov-report=xml --cov-report=html
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: api/htmlcov
+          path: htmlcov
 
 
   build:
@@ -98,25 +100,62 @@ jobs:
           - 5000:5000
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Build and push API
-        run: |
-          docker build -t localhost:5000/api:${{ github.sha }} -t localhost:5000/api:latest ./api
-          docker push localhost:5000/api:${{ github.sha }}
-          docker push localhost:5000/api:latest
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Worker
-        run: |
-          docker build -t localhost:5000/worker:${{ github.sha }} -t localhost:5000/worker:latest ./worker
-          docker push localhost:5000/worker:${{ github.sha }}
-          docker push localhost:5000/worker:latest
+      - name: Build API image (layer cache)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          push: false
+          load: true
+          tags: api:${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
 
-      - name: Build and push Frontend
+      - name: Push API image to local registry
         run: |
-          docker build -t localhost:5000/frontend:${{ github.sha }} -t localhost:5000/frontend:latest ./frontend
-          docker push localhost:5000/frontend:${{ github.sha }}
-          docker push localhost:5000/frontend:latest
+          docker tag "api:${{ github.sha }}" "localhost:5000/api:${{ github.sha }}"
+          docker tag "api:${{ github.sha }}" "localhost:5000/api:latest"
+          docker push "localhost:5000/api:${{ github.sha }}"
+          docker push "localhost:5000/api:latest"
+
+      - name: Build Worker image (layer cache)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./worker
+          push: false
+          load: true
+          tags: worker:${{ github.sha }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
+
+      - name: Push Worker image to local registry
+        run: |
+          docker tag "worker:${{ github.sha }}" "localhost:5000/worker:${{ github.sha }}"
+          docker tag "worker:${{ github.sha }}" "localhost:5000/worker:latest"
+          docker push "localhost:5000/worker:${{ github.sha }}"
+          docker push "localhost:5000/worker:latest"
+
+      - name: Build Frontend image (layer cache)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          load: true
+          tags: frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Push Frontend image to local registry
+        run: |
+          docker tag "frontend:${{ github.sha }}" "localhost:5000/frontend:${{ github.sha }}"
+          docker tag "frontend:${{ github.sha }}" "localhost:5000/frontend:latest"
+          docker push "localhost:5000/frontend:${{ github.sha }}"
+          docker push "localhost:5000/frontend:latest"
 
 
   security-scan:
@@ -124,21 +163,32 @@ jobs:
     needs: build
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Build API image
-        run: docker build -t api-scan ./api
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Scan image
+      - name: Build API image for security scan
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          push: false
+          load: true
+          tags: api-scan:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: api-scan
+          image-ref: api-scan:latest
           format: sarif
           output: trivy.sarif
           severity: CRITICAL
           exit-code: 0
 
-      - name: Upload scan
+      - name: Upload Trivy SARIF report
         uses: actions/upload-artifact@v4
         with:
           name: trivy-report
@@ -150,7 +200,8 @@ jobs:
     needs: security-scan
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Start all services
         run: docker compose up -d --build
@@ -220,7 +271,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Rolling deploy check
         run: |

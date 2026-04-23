@@ -33,7 +33,7 @@ docker-compose.yml (root)
 r = redis.Redis(host="localhost", port=6379)
 ```
 **Problem:**
-- `.env` defines `REDIS_PASSWORD=supersecretpassword123` but it's never used
+- `.env` defines `REDIS_PASSWORD=<example>` but it's never used
 - The password authentication disabled
 - The env variables not loaded at all
 - The port is hardcoded
@@ -64,7 +64,7 @@ const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 **File:** `api/.env`
 **Content:**
 ```
-REDIS_PASSWORD=supersecretpassword123
+REDIS_PASSWORD=<set-in-your-env-not-in-git>
 APP_ENV=production
 ```
 **Problem:**
