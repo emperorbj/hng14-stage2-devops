@@ -17,8 +17,6 @@ def test_create_job():
     with patch("main.r") as mock_redis:
         response = client.post("/jobs")
         data = response.json()
-
-
         assert response.status_code == 200
         assert "job_id" in data
         assert mock_redis.lpush.called

@@ -32,6 +32,7 @@ def create_job():
     r.hset(f"job:{job_id}", "status", "queued")
     return {"job_id": job_id}
 
+
 @app.get("/jobs/{job_id}")
 def get_job(job_id: str):
     status = r.hget(f"job:{job_id}", "status")
