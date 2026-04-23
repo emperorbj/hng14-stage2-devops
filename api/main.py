@@ -21,8 +21,9 @@ def health():
     try:
         r.ping()
         return {"status": "healthy"}
-    except:
+    except Exception:
         return {"status": "unhealthy"}
+
 
 
 @app.post("/jobs")
@@ -31,6 +32,7 @@ def create_job():
     r.lpush("job", job_id)
     r.hset(f"job:{job_id}", "status", "queued")
     return {"job_id": job_id}
+
 
 
 @app.get("/jobs/{job_id}")
