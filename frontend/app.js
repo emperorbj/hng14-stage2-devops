@@ -6,11 +6,17 @@ const path = require('path');
 
 const app = express();
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://api:8000';
+const API_URL = process.env.API_URL || process.env.REACT_APP_API_URL || 'http://api:8000';
 
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'views')));
+
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy' });
+});
+
 
 app.post('/submit', async (req, res) => {
   try {

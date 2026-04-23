@@ -152,24 +152,67 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Start containers
+      - name: Start all services
         run: docker compose up -d --build
 
-      - name: Wait for API
+      - name: Wait for API to be healthy
         run: |
-          timeout 60 bash -c 'until curl -f http://localhost:8000/health; do sleep 5; done'
+          timeout 90 bash -c 'until curl -sf http://localhost:8000/health; do
+            echo "Waiting for API..."; sleep 5
+          done'
+          echo "API is up"
 
-      - name: Submit job
+      - name: Wait for Frontend to be healthy
         run: |
-          JOB_ID=$(curl -s -X POST http://localhost:3000/submit | jq -r '.job_id')
-          sleep 5
-          STATUS=$(curl -s http://localhost:8000/jobs/$JOB_ID | jq -r '.status')
-          test "$STATUS" = "completed"
+          timeout 90 bash -c 'until curl -sf http://localhost:3000/health; do
+            echo "Waiting for frontend..."; sleep 5
+          done'
+          echo "Frontend is up"
 
-      - name: Stop containers
+      - name: Submit job via frontend
+        run: |
+          echo "=== Submitting job ==="
+          SUBMIT_RESPONSE=$(curl -s -X POST http://localhost:3000/submit)
+          echo "Response: $SUBMIT_RESPONSE"
+
+          # Validate JSON and job_id
+          JOB_ID=$(echo "$SUBMIT_RESPONSE" | jq -r '.job_id // empty')
+          if [ -z "$JOB_ID" ]; then
+            echo "ERROR: No job_id returned. Full response: $SUBMIT_RESPONSE"
+            echo "=== Frontend logs ==="
+            docker compose logs frontend
+            echo "=== API logs ==="
+            docker compose logs api
+            exit 1
+          fi
+
+          echo "Job ID: $JOB_ID"
+
+          # Wait for worker to process
+          echo "=== Waiting for job completion ==="
+          timeout 30 bash -c "until [ \"\$(curl -s http://localhost:8000/jobs/$JOB_ID | jq -r '.status')\" = 'completed' ]; do
+            echo 'Job not done yet...'; sleep 3
+          done"
+
+          FINAL=$(curl -s http://localhost:8000/jobs/$JOB_ID)
+          echo "Final job state: $FINAL"
+
+          STATUS=$(echo "$FINAL" | jq -r '.status')
+          if [ "$STATUS" != "completed" ]; then
+            echo "ERROR: Expected 'completed', got '$STATUS'"
+            docker compose logs worker
+            exit 1
+          fi
+
+          echo "Integration test PASSED"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
         if: always()
         run: docker compose down -v
-
 
   deploy:
     runs-on: ubuntu-latest
