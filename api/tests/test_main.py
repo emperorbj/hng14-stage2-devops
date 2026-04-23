@@ -25,6 +25,5 @@ def test_job_not_found():
     with patch("main.r") as mock_redis:
         mock_redis.hget.return_value = None
         response = client.get("/jobs/123")
-
         assert response.status_code == 200
         assert response.json() == {"error": "not found"}
