@@ -2,10 +2,28 @@ from fastapi import FastAPI
 import redis
 import uuid
 import os
+from dotenv import load_dotenv
+import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+load_dotenv()
 app = FastAPI()
 
-r = redis.Redis(host="localhost", port=6379)
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
+
+
+@app.get("/health")
+def health():
+    try:
+        r.ping()
+        return {"status": "healthy"}
+    except:
+        return {"status": "unhealthy"}
+
 
 @app.post("/jobs")
 def create_job():
