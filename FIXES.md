@@ -171,3 +171,17 @@ REACT_APP_API_URL=http://localhost:8000
 into
 REACT_APP_API_URL=http://api:8000
 ```
+
+
+## 11. Linting errors in the python files
+**File:** `api/main.py and worker/worker.py directory`  
+**Problem:**
+- All these files had linting errors some empty
+
+**Fix **
+- I had to add 2 blank spaces between route functions ensured cursor stays at next line of a code
+```bash
+from 
+REACT_APP_API_URL=http://localhost:8000
+into
+REACT_APP_API_URL=http://api:8000
