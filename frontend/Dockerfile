@@ -4,15 +4,18 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+RUN npm run build
+
 
 FROM node:18-alpine
 
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl \
+    && adduser -D appuser
 
 WORKDIR /app
-COPY --from=builder /app .
-
-RUN adduser -D appuser
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package*.json ./
+RUN npm install --omit=dev
 USER appuser
 
 EXPOSE 3000

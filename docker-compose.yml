@@ -6,6 +6,7 @@ services:
     image: redis:7-alpine
     networks:
       - app-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -29,6 +30,7 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
       interval: 10s
@@ -50,6 +52,7 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -67,6 +70,7 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    restart: unless-stopped
     deploy:
       resources:
         limits:
