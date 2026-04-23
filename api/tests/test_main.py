@@ -29,3 +29,4 @@ def test_job_not_found():
         response = client.get("/jobs/123")
         assert response.status_code == 200
         assert response.json() == {"error": "not found"}
+        
